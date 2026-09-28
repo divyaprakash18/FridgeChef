@@ -48,7 +48,7 @@ export const HeroHomeSection: React.FC<HeroHomeSectionProps> = ({
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 backdrop-blur-md rounded-full text-xs font-semibold text-emerald-300 border border-emerald-500/30">
             <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            <span>AI Multimodal Vision + 100% Offline Engine</span>
+            <span>100% Free Standalone Engine · Zero API Billing</span>
           </div>
 
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-medium text-stone-300 border border-white/10">

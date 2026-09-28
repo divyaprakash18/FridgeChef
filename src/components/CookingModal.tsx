@@ -1136,7 +1136,7 @@ ${recipe.chefZeroWasteTip}
               >
                 <div className="flex items-center gap-2 text-xs font-bold text-stone-900">
                   <ChefHat className="w-4 h-4 text-emerald-700" />
-                  <span>Ask Chef Gemini for Substitutions or Flavor Advice</span>
+                  <span>Chef Substitutions & Culinary Tips</span>
                 </div>
                 <span className="text-xs text-emerald-800 font-semibold underline">
                   {isChefExpanded ? 'Hide' : 'Open'}

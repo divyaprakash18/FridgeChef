@@ -35,7 +35,6 @@ import { GoogleAuthModal } from './components/GoogleAuthModal';
 import { DietarySelector } from './components/DietarySelector';
 import { CuisineSelectorBar } from './components/CuisineSelectorBar';
 import { CuisinePreferencesModal } from './components/CuisinePreferencesModal';
-import { GeminiBottomRightWidget } from './components/GeminiBottomRightWidget';
 import { ShoppingListModal } from './components/ShoppingListModal';
 import { AndroidInstallBanner } from './components/AndroidInstallBanner';
 import { HeroHomeSection } from './components/HeroHomeSection';
@@ -104,6 +103,9 @@ export default function App() {
   });
 
   // UI modals
+  const [personalGeminiApiKey, setPersonalGeminiApiKey] = useState<string>(
+    () => currentUser?.personalGeminiApiKey || localStorage.getItem('user_gemini_api_key') || ''
+  );
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isExplainerOpen, setIsExplainerOpen] = useState<boolean>(false);
   const [isPantryPickerOpen, setIsPantryPickerOpen] = useState<boolean>(false);
@@ -163,18 +165,25 @@ export default function App() {
       });
   }, []);
 
+  // Custom recipes added dynamically from AI scans
+  const [customRecipes, setCustomRecipes] = useState<Recipe[]>([]);
+
   // Update recipes whenever detected ingredients change
   const currentIngredientNames = useMemo(
     () => activeScan.detectedIngredients.map((i) => i.name),
     [activeScan.detectedIngredients]
   );
 
+  const allCandidateRecipes = useMemo(() => {
+    return [...customRecipes, ...OFFLINE_RECIPES_DATABASE];
+  }, [customRecipes]);
+
   const matchedRecipes = useMemo(() => {
     return matchRecipesWithIngredients(
       activeScan.detectedIngredients,
-      activeScan.recipes.length > 0 ? activeScan.recipes : OFFLINE_RECIPES_DATABASE
+      allCandidateRecipes
     );
-  }, [activeScan.detectedIngredients, activeScan.recipes]);
+  }, [activeScan.detectedIngredients, allCandidateRecipes]);
 
   // Calculate dietary counts for badges
   const dietaryCounts = useMemo(() => {
@@ -570,7 +579,9 @@ export default function App() {
 
           <FridgeScanner
             onScanComplete={handleScanComplete}
-            isAiAvailable={isAiAvailable}
+            isAiAvailable={Boolean(personalGeminiApiKey)}
+            personalGeminiApiKey={personalGeminiApiKey}
+            onOpenAuth={() => setIsAuthOpen(true)}
             cuisinePreference={selectedCuisine}
             subCuisinePreference={selectedSubCuisine}
             spicePreference={selectedSpice}
@@ -834,44 +845,55 @@ export default function App() {
 
       {/* Quiet, Compliant Footer */}
       <footer className="mt-16 bg-white border-t border-stone-200 py-8 text-xs text-stone-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="font-serif font-bold text-stone-800 text-sm">FridgeChef</span>
-            <span>·</span>
-            <span>Production Zero-Waste Recipe Engine · Regional Cuisines · PWA & Android Store Ready</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="font-serif font-bold text-stone-800 text-sm">FridgeChef</span>
+              <span>·</span>
+              <span>Production Zero-Waste Recipe Engine · Regional Cuisines · PWA & Android Store Ready</span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-6 text-stone-600">
+              <button
+                onClick={() => setIsMealPlannerOpen(true)}
+                className="hover:text-stone-900 transition-colors cursor-pointer font-semibold text-emerald-800"
+              >
+                Zero-Waste Meal Planner
+              </button>
+              <button
+                onClick={() => setIsCuisinePrefsOpen(true)}
+                className="hover:text-stone-900 transition-colors cursor-pointer"
+              >
+                Cuisine Preferences
+              </button>
+              <button
+                onClick={() => setIsExplainerOpen(true)}
+                className="hover:text-stone-900 transition-colors cursor-pointer"
+              >
+                How It Works & Free API Guide
+              </button>
+              <button
+                onClick={() => setIsPantryPickerOpen(true)}
+                className="hover:text-stone-900 transition-colors cursor-pointer"
+              >
+                Pantry Catalog
+              </button>
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                className="hover:text-stone-900 transition-colors cursor-pointer"
+              >
+                {currentUser ? `Account: ${currentUser.name}` : 'Sign in with Google'}
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-6 text-stone-600">
-            <button
-              onClick={() => setIsMealPlannerOpen(true)}
-              className="hover:text-stone-900 transition-colors cursor-pointer font-semibold text-emerald-800"
-            >
-              Zero-Waste Meal Planner
-            </button>
-            <button
-              onClick={() => setIsCuisinePrefsOpen(true)}
-              className="hover:text-stone-900 transition-colors cursor-pointer"
-            >
-              Cuisine Preferences
-            </button>
-            <button
-              onClick={() => setIsExplainerOpen(true)}
-              className="hover:text-stone-900 transition-colors cursor-pointer"
-            >
-              How It Works & Free API Guide
-            </button>
-            <button
-              onClick={() => setIsPantryPickerOpen(true)}
-              className="hover:text-stone-900 transition-colors cursor-pointer"
-            >
-              Pantry Catalog
-            </button>
-            <button
-              onClick={() => setIsAuthOpen(true)}
-              className="hover:text-stone-900 transition-colors cursor-pointer"
-            >
-              {currentUser ? `Account: ${currentUser.name}` : 'Sign in with Google'}
-            </button>
+          <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row items-center justify-between text-[11px] text-stone-400 gap-2">
+            <span>© {new Date().getFullYear()} FridgeChef. All recipes crafted for zero food waste.</span>
+            <div className="flex items-center gap-1.5 font-medium text-stone-600 bg-stone-50 px-3 py-1 rounded-full border border-stone-200/60 shadow-2xs">
+              <span>Built with love</span>
+              <span className="text-rose-500">❤️</span>
+              <span className="font-semibold text-stone-800">: DP</span>
+            </div>
           </div>
         </div>
       </footer>
@@ -911,8 +933,17 @@ export default function App() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         currentUser={currentUser}
-        onSignIn={(user) => setCurrentUser(user)}
-        onSignOut={() => setCurrentUser(null)}
+        onSignIn={(user) => {
+          setCurrentUser(user);
+          if (user.personalGeminiApiKey !== undefined) {
+            setPersonalGeminiApiKey(user.personalGeminiApiKey);
+          }
+        }}
+        onSignOut={() => {
+          setCurrentUser(null);
+          setPersonalGeminiApiKey('');
+        }}
+        onSavePersonalKey={(key) => setPersonalGeminiApiKey(key)}
       />
 
       <ShoppingListModal
@@ -943,14 +974,6 @@ export default function App() {
         currentSubCuisine={selectedSubCuisine}
         currentSpice={selectedSpice}
         currentDietary={dietaryType}
-      />
-
-      {/* Floating Gemini AI Assistant (Bottom-Right) */}
-      <GeminiBottomRightWidget
-        currentIngredients={currentIngredientNames}
-        activeRecipeTitle={selectedRecipe?.title}
-        currentUser={currentUser}
-        onOpenAuth={() => setIsAuthOpen(true)}
       />
     </div>
   );

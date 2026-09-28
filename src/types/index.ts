@@ -67,6 +67,7 @@ export interface Recipe {
   cookTimeMinutes: number;
   servings: number;
   matchScore: number; // 0 to 100
+  requiredIngredients?: string[]; // Master immutable ingredient list for scoring
   matchedIngredients: string[];
   missingOrStapleIngredients: MissingIngredient[];
   dietaryTags: string[];
@@ -107,6 +108,7 @@ export interface GoogleUserProfile {
   savedCuisinePreference?: string;
   savedSubCuisinePreference?: string;
   savedSpicePreference?: SpiceLevel;
+  personalGeminiApiKey?: string;
 }
 
 export interface GeminiChatMessage {

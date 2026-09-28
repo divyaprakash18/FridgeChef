@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, ShieldCheck, Sparkles, LogOut, User, Mail, Smartphone } from 'lucide-react';
+import { X, CheckCircle2, ShieldCheck, Sparkles, LogOut, Key, ExternalLink } from 'lucide-react';
 import { GoogleUserProfile } from '../types';
 
 declare global {
@@ -14,6 +14,7 @@ interface GoogleAuthModalProps {
   currentUser: GoogleUserProfile | null;
   onSignIn: (user: GoogleUserProfile) => void;
   onSignOut: () => void;
+  onSavePersonalKey?: (key: string) => void;
 }
 
 export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
@@ -22,6 +23,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
   currentUser,
   onSignIn,
   onSignOut,
+  onSavePersonalKey,
 }) => {
   if (!isOpen) return null;
 
@@ -29,15 +31,18 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
   const [customName, setCustomName] = useState('');
   const [isCustomMode, setIsCustomMode] = useState(false);
 
+  const [personalKeyInput, setPersonalKeyInput] = useState<string>(() => {
+    return currentUser?.personalGeminiApiKey || localStorage.getItem('user_gemini_api_key') || '';
+  });
+  const [keyNotice, setKeyNotice] = useState<string | null>(null);
+
   // Initialize Google Identity Services button if available
   useEffect(() => {
-    // If window.google?.accounts?.id is loaded, render GIS button
     if (window.google?.accounts?.id) {
       try {
         window.google.accounts.id.initialize({
-          client_id: 'sample-client-id.apps.googleusercontent.com', // Demo client or injected
+          client_id: 'sample-client-id.apps.googleusercontent.com',
           callback: (response: any) => {
-            // Parse JWT credentials
             try {
               const base64Url = response.credential.split('.')[1];
               const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -48,12 +53,14 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
                   .join('')
               );
               const payload = JSON.parse(jsonPayload);
+              const savedKey = localStorage.getItem('user_gemini_api_key') || undefined;
               onSignIn({
                 id: payload.sub || `google-${Date.now()}`,
                 name: payload.name || 'Google User',
                 email: payload.email || 'user@gmail.com',
                 avatarUrl: payload.picture,
                 authProvider: 'google',
+                personalGeminiApiKey: savedKey,
               });
               onClose();
             } catch (e) {
@@ -68,15 +75,16 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
   }, [isOpen, onSignIn, onClose]);
 
   const handleInstantGoogleSignIn = (email: string, name: string) => {
+    const savedKey = personalKeyInput.trim() || localStorage.getItem('user_gemini_api_key') || undefined;
     const user: GoogleUserProfile = {
       id: `google-${Date.now()}`,
       name,
       email,
       avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=047857`,
       authProvider: 'google',
+      personalGeminiApiKey: savedKey,
     };
     onSignIn(user);
-    onClose();
   };
 
   const handleCustomSubmit = (e: React.FormEvent) => {
@@ -85,9 +93,31 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
     handleInstantGoogleSignIn(customEmail.trim(), customName.trim());
   };
 
+  const handleSavePersonalKey = () => {
+    const trimmed = personalKeyInput.trim();
+    if (trimmed) {
+      localStorage.setItem('user_gemini_api_key', trimmed);
+      if (onSavePersonalKey) onSavePersonalKey(trimmed);
+      if (currentUser) {
+        onSignIn({ ...currentUser, personalGeminiApiKey: trimmed });
+      }
+      setKeyNotice('✓ Key saved! Requests will use your personal free Gemini quota.');
+    } else {
+      localStorage.removeItem('user_gemini_api_key');
+      if (onSavePersonalKey) onSavePersonalKey('');
+      if (currentUser) {
+        onSignIn({ ...currentUser, personalGeminiApiKey: undefined });
+      }
+      setKeyNotice('Key cleared. App will run in 100% Free Standalone Mode.');
+    }
+    setTimeout(() => setKeyNotice(null), 3500);
+  };
+
+  const hasPersonalKey = Boolean(personalKeyInput.trim());
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col">
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-6 border-b border-stone-100 bg-stone-50 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -116,7 +146,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
                 {currentUser ? 'Google Account' : 'Sign in with Google'}
               </h3>
               <p className="text-[11px] text-stone-500">
-                Unlock Gemini Vision and personal recipe syncing
+                Personal preferences & optional free Gemini AI access
               </p>
             </div>
           </div>
@@ -129,7 +159,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 overflow-y-auto">
           {currentUser ? (
             /* Signed in Profile State */
             <div className="space-y-4">
@@ -155,15 +185,19 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
               <div className="space-y-2 text-xs text-stone-600 bg-stone-50 p-3 rounded-xl border border-stone-200">
                 <div className="flex items-center gap-2 text-emerald-800 font-medium">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Gemini 3.8 Flash Vision Enabled</span>
+                  <span>Personal Favorites & Custom Dietary Sync Active</span>
                 </div>
                 <div className="flex items-center gap-2 text-emerald-800 font-medium">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Gemini Bottom-Right Sous-Chef Active</span>
+                  <span>Zero-Waste Grocery Checklist Sync Active</span>
                 </div>
-                <div className="flex items-center gap-2 text-emerald-800 font-medium">
+                <div className="flex items-center gap-2 text-stone-700 font-medium">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Favorites & Grocery Sync Active</span>
+                  <span>
+                    {hasPersonalKey
+                      ? 'Personal Free Gemini Vision: Connected'
+                      : 'Running in 100% Free Standalone Mode'}
+                  </span>
                 </div>
               </div>
 
@@ -173,28 +207,28 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
                   onSignOut();
                   onClose();
                 }}
-                className="w-full py-2.5 px-4 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2 px-4 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Sign Out from FridgeChef</span>
+                <span>Sign Out from Google Account</span>
               </button>
             </div>
           ) : (
             /* Sign In Prompt */
             <div className="space-y-4">
-              <div className="text-xs text-stone-600 space-y-2 leading-relaxed">
-                <p>
-                  Signing in with your Google account connects your session to Google Gemini AI so you can:
+              <div className="text-xs text-stone-600 space-y-1 leading-relaxed">
+                <p className="font-medium text-stone-800">
+                  Sign in with your Google account to sync your kitchen preferences:
                 </p>
-                <ul className="list-disc pl-5 space-y-1 text-stone-600 font-medium">
-                  <li>Scan any messy fridge photo using Gemini Multimodal Vision</li>
-                  <li>Chat with the in-app Gemini Sous-Chef at the bottom right</li>
-                  <li>Save favorite dishes and track customized grocery lists</li>
+                <ul className="list-disc pl-5 space-y-0.5 text-stone-600">
+                  <li>Save favorite recipes across all cuisines</li>
+                  <li>Sync smart grocery shopping checklists across devices</li>
+                  <li>Use your own free Google Gemini quota limit for AI photo scans</li>
                 </ul>
               </div>
 
-              {/* 1-Click Verified User Button (Pre-filled with session user divya2.yadav@paytm.com) */}
-              <div className="space-y-2 pt-2">
+              {/* 1-Click Google Sign-In */}
+              <div className="space-y-2 pt-1">
                 <button
                   type="button"
                   onClick={() =>
@@ -229,13 +263,13 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
                     </div>
                   </div>
                   <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                    Instant Sign In
+                    Sign In
                   </span>
                 </button>
 
                 <div className="flex items-center gap-2 py-1">
                   <div className="flex-1 h-px bg-stone-200" />
-                  <span className="text-[10px] uppercase font-semibold text-stone-400">or sign in with another email</span>
+                  <span className="text-[10px] uppercase font-semibold text-stone-400">or sign in with custom email</span>
                   <div className="flex-1 h-px bg-stone-200" />
                 </div>
 
@@ -243,9 +277,9 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsCustomMode(true)}
-                    className="w-full py-2.5 px-4 text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-xl transition-colors cursor-pointer"
+                    className="w-full py-2 text-xs font-medium text-stone-600 hover:text-stone-900 underline text-center cursor-pointer"
                   >
-                    Enter Different Google Account
+                    Enter another Google email
                   </button>
                 ) : (
                   <form onSubmit={handleCustomSubmit} className="space-y-2.5">
@@ -255,7 +289,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
                         required
                         value={customName}
                         onChange={(e) => setCustomName(e.target.value)}
-                        placeholder="Your Full Name (e.g. Alex Rivera)"
+                        placeholder="Your Name (e.g. Alex)"
                         className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600"
                       />
                     </div>
@@ -265,7 +299,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
                         required
                         value={customEmail}
                         onChange={(e) => setCustomEmail(e.target.value)}
-                        placeholder="Google Account Email (e.g. alex@gmail.com)"
+                        placeholder="Google Email (e.g. alex@gmail.com)"
                         className="w-full px-3 py-2 text-xs border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600"
                       />
                     </div>
@@ -273,18 +307,94 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
                       type="submit"
                       className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl transition-colors cursor-pointer"
                     >
-                      Sign In & Connect Gemini
+                      Sign In to FridgeChef
                     </button>
                   </form>
                 )}
               </div>
-
-              <div className="pt-2 flex items-center justify-center gap-2 text-[11px] text-stone-400">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Protected by Google Identity. No passwords shared.</span>
-              </div>
             </div>
           )}
+
+          {/* Personal Free Gemini Quota (BYO-Key) Section */}
+          <div className="p-3.5 bg-emerald-50/50 border border-emerald-200/80 rounded-xl space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 font-bold text-stone-900">
+                <Key className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Use Your Own Free Gemini Quota (Optional)</span>
+              </div>
+              {hasPersonalKey ? (
+                <span className="text-[10px] text-emerald-800 bg-emerald-100 font-bold px-2 py-0.5 rounded">
+                  Connected
+                </span>
+              ) : (
+                <span className="text-[10px] text-stone-500 bg-stone-200 font-medium px-2 py-0.5 rounded">
+                  Zero Billing Mode
+                </span>
+              )}
+            </div>
+
+            <p className="text-stone-600 text-[11px] leading-relaxed">
+              Google gives each account free access limits for Gemini. To use multimodal AI scanning without charging the app host, paste your personal Google AI Studio key below. It is stored securely only in your browser storage.
+            </p>
+
+            <div className="flex gap-2 pt-1">
+              <input
+                type="password"
+                value={personalKeyInput}
+                onChange={(e) => setPersonalKeyInput(e.target.value)}
+                placeholder="Paste your free AIza... key"
+                className="flex-1 px-3 py-2 text-xs border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 bg-white"
+              />
+              <button
+                type="button"
+                onClick={handleSavePersonalKey}
+                className="px-3.5 py-2 text-xs font-semibold text-white bg-emerald-800 hover:bg-emerald-900 rounded-lg cursor-pointer"
+              >
+                {hasPersonalKey ? 'Update' : 'Save'}
+              </button>
+              {hasPersonalKey && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPersonalKeyInput('');
+                    localStorage.removeItem('user_gemini_api_key');
+                    if (onSavePersonalKey) onSavePersonalKey('');
+                    if (currentUser) {
+                      onSignIn({ ...currentUser, personalGeminiApiKey: undefined });
+                    }
+                    setKeyNotice('Key cleared. Returned to 100% Free Standalone Mode.');
+                  }}
+                  className="px-2 py-2 text-xs text-stone-500 hover:text-stone-800 hover:bg-stone-200 rounded-lg cursor-pointer"
+                  title="Clear key"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {keyNotice && (
+              <div className="text-[11px] text-emerald-800 font-medium animate-in fade-in">
+                {keyNotice}
+              </div>
+            )}
+
+            <div className="text-[11px] pt-1">
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-700 hover:text-emerald-900 font-medium inline-flex items-center gap-1 hover:underline"
+              >
+                <span>Get a free key from Google AI Studio (No credit card needed)</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-2 text-[11px] text-stone-400">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Host is never billed. Standalone mode always available.</span>
+          </div>
         </div>
       </div>
     </div>

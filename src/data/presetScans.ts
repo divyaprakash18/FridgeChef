@@ -62,4 +62,21 @@ export const PRESET_FRIDGES: PresetFridge[] = [
       { name: 'Olive Oil', category: 'Pantry', quantityEstimate: 'Kitchen bottle', freshnessNotice: 'Pantry staple' },
     ],
   },
+  {
+    id: 'desi-spice-kitchen',
+    title: 'Desi Spice & Fresh Dairy Fridge',
+    subtitle: 'Paneer, tomatoes, onions, garlic, ginger, butter, green chilies, yogurt',
+    image: heroFridgeImg,
+    description: 'Vibrant Indian kitchen fridge with fresh paneer, ripe tomatoes, ginger-garlic aromatics, butter, and yogurt.',
+    ingredients: [
+      { name: 'Paneer', category: 'Dairy', quantityEstimate: '200g fresh block', freshnessNotice: 'Use within 2 days', priority: 'High (use first)' },
+      { name: 'Tomatoes', category: 'Produce', quantityEstimate: '4 ripe tomatoes', freshnessNotice: 'Ripe & sweet', priority: 'High (use first)' },
+      { name: 'Onions', category: 'Produce', quantityEstimate: '3 red onions', freshnessNotice: 'Dry storage' },
+      { name: 'Garlic', category: 'Produce', quantityEstimate: '5 cloves', freshnessNotice: 'Dry storage' },
+      { name: 'Ginger', category: 'Produce', quantityEstimate: '1 inch knob', freshnessNotice: 'Fresh' },
+      { name: 'Butter', category: 'Dairy', quantityEstimate: 'Half block Amul butter', freshnessNotice: 'Chilled' },
+      { name: 'Yogurt', category: 'Dairy', quantityEstimate: '1 cup plain dahi', freshnessNotice: 'Fresh' },
+      { name: 'Green Chilies', category: 'Produce', quantityEstimate: '4 chilies', freshnessNotice: 'Crisp' },
+    ],
+  },
 ];

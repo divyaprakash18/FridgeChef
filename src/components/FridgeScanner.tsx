@@ -1,12 +1,14 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Upload, Sparkles, Image as ImageIcon, ArrowRight, AlertCircle, RefreshCw, Check, Video } from 'lucide-react';
+import { Camera, Upload, Sparkles, ArrowRight, AlertCircle, RefreshCw, Check, Key } from 'lucide-react';
 import { PRESET_FRIDGES } from '../data/presetScans';
 import { PresetFridge, ScanResult } from '../types';
 import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface FridgeScannerProps {
   onScanComplete: (result: ScanResult) => void;
-  isAiAvailable: boolean;
+  isAiAvailable?: boolean;
+  personalGeminiApiKey?: string;
+  onOpenAuth?: () => void;
   cuisinePreference?: string;
   subCuisinePreference?: string;
   spicePreference?: string;
@@ -15,7 +17,8 @@ interface FridgeScannerProps {
 
 export const FridgeScanner: React.FC<FridgeScannerProps> = ({
   onScanComplete,
-  isAiAvailable,
+  personalGeminiApiKey,
+  onOpenAuth,
   cuisinePreference,
   subCuisinePreference,
   spicePreference,
@@ -25,7 +28,9 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisPhase, setAnalysisPhase] = useState<string>('Preparing image...');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [scanMode, setScanMode] = useState<'ai' | 'standalone'>(isAiAvailable ? 'ai' : 'standalone');
+  const [scanMode, setScanMode] = useState<'standalone' | 'ai'>(
+    personalGeminiApiKey ? 'ai' : 'standalone'
+  );
 
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +46,6 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
       setSelectedImage(reader.result as string);
     };
     reader.readAsDataURL(file);
-    // Reset value so selecting the same file triggers change
     e.target.value = '';
   };
 
@@ -49,11 +53,9 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
     if (e) e.stopPropagation();
     setErrorMsg(null);
 
-    // If mediaDevices and getUserMedia exist, open live viewfinder
     if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
       setIsCameraModalOpen(true);
     } else {
-      // Fallback to native mobile/desktop capture
       cameraInputRef.current?.click();
     }
   };
@@ -66,15 +68,13 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
   const handleSelectPreset = (preset: PresetFridge) => {
     setSelectedImage(preset.image);
     setErrorMsg(null);
-
-    // If standalone or AI, immediately allow user to analyze or auto-load
     runAnalysis(preset.image, preset);
   };
 
   const runAnalysis = async (imageSrc?: string, presetData?: PresetFridge) => {
     const targetImage = imageSrc || selectedImage;
     if (!targetImage) {
-      setErrorMsg('Please upload a photo of your fridge first.');
+      setErrorMsg('Please upload or take a photo of your fridge first.');
       return;
     }
 
@@ -96,57 +96,61 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
     }, 900);
 
     try {
-      if (scanMode === 'ai') {
-        const response = await fetch('/api/analyze-fridge', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageBase64: targetImage,
-            mimeType: 'image/jpeg',
-            cuisinePreference,
-            subCuisinePreference,
-            spicePreference,
-            dietaryRestrictions: dietaryPreference && dietaryPreference !== 'all' ? [dietaryPreference] : [],
-          }),
-        });
-
-        const data = await response.json();
-
-        if (data.success && data.data) {
-          clearInterval(phaseInterval);
-          setIsAnalyzing(false);
-          onScanComplete({
-            source: 'gemini-vision',
-            fridgeSummary: data.data.fridgeSummary,
-            detectedIngredients: data.data.detectedIngredients,
-            recipes: data.data.recipes,
-            imageUrl: targetImage,
+      // If AI mode is selected and user provided personal Gemini key
+      if (scanMode === 'ai' && personalGeminiApiKey && !presetData) {
+        try {
+          const response = await fetch('/api/analyze-fridge', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-gemini-api-key': personalGeminiApiKey,
+            },
+            body: JSON.stringify({
+              imageBase64: targetImage,
+              mimeType: 'image/jpeg',
+              cuisinePreference,
+              subCuisinePreference,
+              spicePreference,
+              dietaryRestrictions:
+                dietaryPreference && dietaryPreference !== 'all' ? [dietaryPreference] : [],
+            }),
           });
-          return;
-        } else if (data.fallback || data.error) {
-          console.warn('AI analysis fell back to standalone matcher:', data.message);
+
+          const data = await response.json();
+          if (data.success && data.data) {
+            clearInterval(phaseInterval);
+            setIsAnalyzing(false);
+            onScanComplete({
+              source: 'gemini-vision',
+              fridgeSummary: data.data.fridgeSummary,
+              detectedIngredients: data.data.detectedIngredients,
+              recipes: data.data.recipes,
+              imageUrl: targetImage,
+            });
+            return;
+          }
+        } catch (e) {
+          console.warn('Personal Gemini vision fallback:', e);
         }
       }
 
-      // Standalone mode or fallback if no AI key
-      await new Promise((res) => setTimeout(res, 1200));
+      // Standalone mode: Instant local analysis with zero external API calls
+      await new Promise((res) => setTimeout(res, 800));
       clearInterval(phaseInterval);
       setIsAnalyzing(false);
 
       if (presetData) {
-        // Use preset's rich pre-scanned data
         const { matchRecipesWithIngredients } = await import('../utils/recipeMatcher');
         const matched = matchRecipesWithIngredients(presetData.ingredients);
 
         onScanComplete({
           source: 'standalone-engine',
-          fridgeSummary: `Standalone Scan: ${presetData.description}`,
+          fridgeSummary: `Preset Loaded: ${presetData.description}`,
           detectedIngredients: presetData.ingredients,
           recipes: matched,
           imageUrl: presetData.image,
         });
       } else {
-        // Fallback for custom image with default detected everyday items
         const { PRESET_FRIDGES } = await import('../data/presetScans');
         const defaultSample = PRESET_FRIDGES[0];
         const { matchRecipesWithIngredients } = await import('../utils/recipeMatcher');
@@ -154,7 +158,8 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
 
         onScanComplete({
           source: 'standalone-engine',
-          fridgeSummary: 'Analyzed using Standalone Engine. Detected staple items from photo; edit below to refine.',
+          fridgeSummary:
+            'Analyzed using 100% Free Standalone Engine. Detected staple items; customize below to explore recipes.',
           detectedIngredients: defaultSample.ingredients,
           recipes: matched,
           imageUrl: targetImage,
@@ -181,31 +186,51 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
           </p>
         </div>
 
-        {/* Engine Mode Selector */}
-        <div className="flex items-center gap-1 p-1 bg-stone-200/70 rounded-lg self-start sm:self-auto">
-          <button
-            onClick={() => setScanMode('ai')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 cursor-pointer ${
-              scanMode === 'ai'
-                ? 'bg-white text-stone-900 shadow-sm'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>AI Vision Mode</span>
-          </button>
-          <button
-            onClick={() => setScanMode('standalone')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 cursor-pointer ${
-              scanMode === 'standalone'
-                ? 'bg-white text-stone-900 shadow-sm'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <Check className="w-3.5 h-3.5 text-stone-600" />
-            <span>100% Standalone (Zero-API)</span>
-          </button>
-        </div>
+        {/* Engine Mode Toggle */}
+        {personalGeminiApiKey ? (
+          <div className="flex items-center gap-1 p-1 bg-stone-200/70 rounded-lg self-start sm:self-auto">
+            <button
+              onClick={() => setScanMode('standalone')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 cursor-pointer ${
+                scanMode === 'standalone'
+                  ? 'bg-white text-stone-900 shadow-sm'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Check className="w-3.5 h-3.5 text-stone-600" />
+              <span>Standalone (Zero API)</span>
+            </button>
+            <button
+              onClick={() => setScanMode('ai')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 cursor-pointer ${
+                scanMode === 'ai'
+                  ? 'bg-white text-emerald-800 shadow-sm'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Personal Gemini Vision</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-800 text-xs font-semibold rounded-lg border border-emerald-200">
+              <Check className="w-3.5 h-3.5 text-emerald-600" />
+              <span>100% Free Standalone Mode</span>
+            </div>
+            {onOpenAuth && (
+              <button
+                type="button"
+                onClick={onOpenAuth}
+                className="px-2.5 py-1.5 text-[11px] text-stone-600 hover:text-stone-900 font-medium bg-stone-100 hover:bg-stone-200 border border-stone-200 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                title="Use your own Google account free tier quota"
+              >
+                <Key className="w-3 h-3 text-emerald-600" />
+                <span>Use Personal Free Gemini Quota</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="p-6">
@@ -340,8 +365,8 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
             </div>
           </div>
 
-          {/* Quick Preset Samples Column */}
-          <div className="lg:col-span-5 space-y-3" id="preset-scans-section">
+          {/* Preset Sample Fridges Column */}
+          <div className="lg:col-span-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-500">
                 Or test with a preset fridge scan:
