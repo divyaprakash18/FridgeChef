@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Upload, Sparkles, Image as ImageIcon, ArrowRight, AlertCircle, RefreshCw, Check } from 'lucide-react';
+import { Camera, Upload, Sparkles, Image as ImageIcon, ArrowRight, AlertCircle, RefreshCw, Check, Video } from 'lucide-react';
 import { PRESET_FRIDGES } from '../data/presetScans';
 import { PresetFridge, ScanResult } from '../types';
+import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface FridgeScannerProps {
   onScanComplete: (result: ScanResult) => void;
@@ -26,6 +27,7 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [scanMode, setScanMode] = useState<'ai' | 'standalone'>(isAiAvailable ? 'ai' : 'standalone');
 
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,6 +41,26 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
       setSelectedImage(reader.result as string);
     };
     reader.readAsDataURL(file);
+    // Reset value so selecting the same file triggers change
+    e.target.value = '';
+  };
+
+  const handleTriggerTakePhoto = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setErrorMsg(null);
+
+    // If mediaDevices and getUserMedia exist, open live viewfinder
+    if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+      setIsCameraModalOpen(true);
+    } else {
+      // Fallback to native mobile/desktop capture
+      cameraInputRef.current?.click();
+    }
+  };
+
+  const handleCameraCapture = (imageDataUrl: string) => {
+    setSelectedImage(imageDataUrl);
+    setErrorMsg(null);
   };
 
   const handleSelectPreset = (preset: PresetFridge) => {
@@ -237,13 +259,11 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
                     <span className="text-stone-300">·</span>
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        cameraInputRef.current?.click();
-                      }}
-                      className="text-stone-600 hover:text-stone-900 underline font-medium cursor-pointer"
+                      onClick={handleTriggerTakePhoto}
+                      className="text-emerald-700 hover:text-emerald-900 underline font-semibold cursor-pointer flex items-center gap-1"
                     >
-                      Take New Photo
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Take New Photo</span>
                     </button>
                   </div>
                 </div>
@@ -263,13 +283,10 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
                   <div className="pt-2 flex items-center justify-center gap-3">
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        cameraInputRef.current?.click();
-                      }}
-                      className="px-4 py-2 text-xs font-semibold text-stone-800 bg-stone-200 hover:bg-stone-300 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                      onClick={handleTriggerTakePhoto}
+                      className="px-4 py-2 text-xs font-bold text-stone-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
                     >
-                      <Camera className="w-4 h-4" />
+                      <Camera className="w-4 h-4 text-stone-950" />
                       Take Photo
                     </button>
                     <button
@@ -364,6 +381,13 @@ export const FridgeScanner: React.FC<FridgeScannerProps> = ({
           </div>
         </div>
       </div>
+
+      <CameraCaptureModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={handleCameraCapture}
+        onFallbackToFileInput={() => cameraInputRef.current?.click()}
+      />
     </div>
   );
 };

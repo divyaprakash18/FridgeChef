@@ -1,7 +1,9 @@
 {
   "name": "FridgeChef - Photo Recipe Finder",
   "description": "AI-powered fridge scanner and zero-waste kitchen companion. Features smart perishable expiry tracking, urgent Rescue Mode, hands-free voice-guided cooking HUD with timers, multi-day meal planning, and instant WhatsApp recipe sharing.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": [
+    "camera"
+  ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
