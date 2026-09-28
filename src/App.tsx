@@ -89,17 +89,34 @@ export default function App() {
     }
   });
 
-  // Active scan & inventory state
-  const initialPreset = PRESET_FRIDGES[0];
-  const initialEnrichedIngredients = enrichIngredientsWithExpiry(initialPreset.ingredients);
+  // Active scan & inventory state (lightweight starter: only 2 essentials pre-selected)
+  const initialStarterIngredients: IngredientItem[] = [
+    {
+      name: 'Eggs',
+      category: 'Dairy',
+      quantityEstimate: '4 large eggs',
+      freshnessNotice: 'Fresh condition',
+      expiresInDays: 7,
+      priority: 'Normal',
+    },
+    {
+      name: 'Tomatoes',
+      category: 'Produce',
+      quantityEstimate: '2 ripe tomatoes',
+      freshnessNotice: 'Sweet & ripe',
+      expiresInDays: 4,
+      priority: 'Normal',
+    },
+  ];
+  const initialEnrichedIngredients = enrichIngredientsWithExpiry(initialStarterIngredients);
   const initialRecipes = matchRecipesWithIngredients(initialEnrichedIngredients);
 
   const [activeScan, setActiveScan] = useState<ScanResult>({
     source: 'standalone-engine',
-    fridgeSummary: 'Welcome! Loaded with everyday kitchen items. Snap your own fridge photo or explore dishes below.',
+    fridgeSummary: 'Started light with 2 sample pantry essentials. Snap your fridge photo or add items to explore more dishes.',
     detectedIngredients: initialEnrichedIngredients,
     recipes: initialRecipes,
-    imageUrl: initialPreset.image,
+    imageUrl: undefined,
   });
 
   // UI modals
@@ -414,15 +431,14 @@ export default function App() {
   };
 
   const handleReset = () => {
-    const sample = PRESET_FRIDGES[0];
-    const enriched = enrichIngredientsWithExpiry(sample.ingredients);
+    const enriched = enrichIngredientsWithExpiry(initialStarterIngredients);
     const initialMatched = matchRecipesWithIngredients(enriched);
     setActiveScan({
       source: 'standalone-engine',
-      fridgeSummary: 'Reset to default sample fridge. Snap a photo or edit ingredients to start fresh.',
+      fridgeSummary: 'Started light with 2 sample essentials. Snap a photo or edit ingredients to explore dishes.',
       detectedIngredients: enriched,
       recipes: initialMatched,
-      imageUrl: sample.image,
+      imageUrl: undefined,
     });
     setSearchQuery('');
     setFilterTab('all');
@@ -921,6 +937,7 @@ export default function App() {
         onClose={() => setIsPantryPickerOpen(false)}
         currentIngredients={activeScan.detectedIngredients}
         onToggleItem={handleTogglePantryItem}
+        onClearAll={handleClearAll}
       />
 
       <ApiExplainerModal

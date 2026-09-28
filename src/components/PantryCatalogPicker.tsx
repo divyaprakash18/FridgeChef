@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, Check, Plus } from 'lucide-react';
+import { X, Search, Check, Plus, Trash2 } from 'lucide-react';
 import { COMMON_PANTRY_CATEGORIES } from '../data/pantryDatabase';
 import { IngredientItem } from '../types';
 
@@ -8,6 +8,7 @@ interface PantryCatalogPickerProps {
   onClose: () => void;
   currentIngredients: IngredientItem[];
   onToggleItem: (name: string, category: IngredientItem['category']) => void;
+  onClearAll?: () => void;
 }
 
 export const PantryCatalogPicker: React.FC<PantryCatalogPickerProps> = ({
@@ -15,6 +16,7 @@ export const PantryCatalogPicker: React.FC<PantryCatalogPickerProps> = ({
   onClose,
   currentIngredients,
   onToggleItem,
+  onClearAll,
 }) => {
   if (!isOpen) return null;
 
@@ -100,10 +102,22 @@ export const PantryCatalogPicker: React.FC<PantryCatalogPickerProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between">
-          <span className="text-xs text-stone-500">
-            {currentIngredients.length} ingredients selected in fridge
-          </span>
+        <div className="px-6 py-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-stone-600">
+              {currentIngredients.length} selected
+            </span>
+            {currentIngredients.length > 0 && onClearAll && (
+              <button
+                type="button"
+                onClick={onClearAll}
+                className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+              >
+                <Trash2 className="w-3 h-3 text-rose-600" />
+                <span>Clear All</span>
+              </button>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="px-5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors cursor-pointer"

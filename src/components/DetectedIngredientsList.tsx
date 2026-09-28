@@ -11,6 +11,7 @@ import {
   Flame,
   ChevronDown,
   ShieldAlert,
+  Trash2,
 } from 'lucide-react';
 import { IngredientItem } from '../types';
 import { estimateShelfLifeDays } from '../utils/expiryEstimator';
@@ -109,10 +110,13 @@ export const DetectedIngredientsList: React.FC<DetectedIngredientsListProps> = (
 
           {ingredients.length > 0 && (
             <button
+              type="button"
               onClick={onClearAll}
-              className="text-xs text-stone-400 hover:text-stone-700 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 border border-rose-200/90 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow-xs active:scale-95"
+              title="Clear all selected ingredients"
             >
-              Clear all
+              <Trash2 className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <span>Clear All ({ingredients.length})</span>
             </button>
           )}
         </div>
@@ -152,11 +156,11 @@ export const DetectedIngredientsList: React.FC<DetectedIngredientsListProps> = (
 
       {/* Ingredient Items Grid */}
       {ingredients.length === 0 ? (
-        <div className="text-center py-8 border border-dashed border-stone-200 rounded-xl bg-stone-50/50">
-          <ShoppingBag className="w-8 h-8 text-stone-300 mx-auto mb-2" />
-          <p className="text-xs font-medium text-stone-600">No ingredients in fridge list yet.</p>
-          <p className="text-[11px] text-stone-400 mt-0.5">
-            Scan a photo above or use the quick-add input below.
+        <div className="text-center py-8 border border-dashed border-stone-200 rounded-xl bg-stone-50/50 space-y-2">
+          <ShoppingBag className="w-8 h-8 text-stone-300 mx-auto" />
+          <p className="text-xs font-semibold text-stone-700">Fridge inventory is empty</p>
+          <p className="text-[11px] text-stone-400 max-w-sm mx-auto">
+            Use the bar below to add ingredients, click &quot;Pantry Catalog&quot; to pick essentials, or select a sample fridge above.
           </p>
         </div>
       ) : (
@@ -170,13 +174,13 @@ export const DetectedIngredientsList: React.FC<DetectedIngredientsListProps> = (
             return (
               <div
                 key={`${item.name}-${idx}`}
-                className={`group inline-flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-xl text-xs transition-all border ${
+                className={`group inline-flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-xl text-xs transition-all border shadow-2xs ${
                   isUrgent
-                    ? 'bg-rose-50/70 hover:bg-rose-100/70 border-rose-200 text-rose-950 font-medium'
-                    : 'bg-stone-50 hover:bg-stone-100 border-stone-200 text-stone-800'
+                    ? 'bg-rose-50/80 hover:bg-rose-100/80 border-rose-300 text-rose-950 font-medium'
+                    : 'bg-stone-50 hover:bg-stone-100 border-stone-300/80 text-stone-900'
                 }`}
               >
-                <span className="font-semibold">{item.name}</span>
+                <span className="font-bold text-stone-900">{item.name}</span>
 
                 {/* Expiry Pill */}
                 <button
@@ -184,7 +188,6 @@ export const DetectedIngredientsList: React.FC<DetectedIngredientsListProps> = (
                   title="Click to adjust days until expiry"
                   onClick={() => {
                     if (onUpdateIngredientExpiry) {
-                      // Cycle through 1, 2, 4, 7 days
                       const nextDays = days <= 1 ? 4 : days <= 2 ? 7 : days <= 4 ? 1 : 2;
                       onUpdateIngredientExpiry(idx, nextDays);
                     }
@@ -209,13 +212,15 @@ export const DetectedIngredientsList: React.FC<DetectedIngredientsListProps> = (
                   </span>
                 )}
 
+                {/* Clearly visible, prominent cross button */}
                 <button
                   type="button"
                   onClick={() => onRemoveIngredient(idx)}
-                  title={`Remove ${item.name}`}
-                  className="p-1 text-stone-400 hover:text-rose-600 rounded hover:bg-white/80 transition-colors ml-0.5 cursor-pointer"
+                  title={`Remove ${item.name} from list`}
+                  aria-label={`Remove ${item.name}`}
+                  className="w-5 h-5 rounded-full bg-stone-200/90 hover:bg-rose-600 text-stone-600 hover:text-white flex items-center justify-center transition-all ml-1 cursor-pointer shadow-2xs shrink-0 group-hover:bg-stone-300 group-hover:text-stone-900"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
                 </button>
               </div>
             );
