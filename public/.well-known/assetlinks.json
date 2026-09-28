@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.fridgechef.app",
+      "sha256_cert_fingerprints": [
+        "14:6D:E9:7D:0C:52:12:47:E8:4A:A5:68:55:04:9A:F0:EF:3A:D4:57:9D:69:C2:5E:2B:65:07:3E:5B:C9:83:85"
+      ]
+    }
+  }
+]
